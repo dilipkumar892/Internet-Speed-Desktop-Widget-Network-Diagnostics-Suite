@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <AssemblyName>NetSpeedWidget</AssemblyName>
+    <RootNamespace>NetSpeedWidget</RootNamespace>
+    
+    <!-- Versioning -->
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Product>Internet Speed Desktop Widget</Product>
+    <Company>NetSpeedWidget Community</Company>
+    <Authors>NetSpeedWidget Community</Authors>
+    <Description>Lightweight, modern Internet Speed Desktop Widget for Windows 10</Description>
+    <Copyright>Copyright © 2026</Copyright>
+
+    <!-- Optimization for lightweight deployment -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" />
+    <Resource Include="Resources\app.png" />
+  </ItemGroup>
+
+</Project>

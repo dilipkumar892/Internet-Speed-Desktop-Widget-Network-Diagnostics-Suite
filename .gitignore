@@ -1,0 +1,19 @@
+## Visual Studio / .NET Core
+[Bb]in/
+[Oo]bj/
+artifacts/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Visual Studio Code
+.vscode/
+
+## Rider
+.idea/
+
+## Logs and temporary files
+*.log
+*.tmp

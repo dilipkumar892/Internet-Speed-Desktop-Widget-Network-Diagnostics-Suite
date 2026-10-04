@@ -1,0 +1,587 @@
+<Window x:Class="NetSpeedWidget.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:NetSpeedWidget.Controls"
+        Title="Internet Speed Widget"
+        Width="270"
+        SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        LocationChanged="Window_LocationChanged"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- Pulsing Arrow Animation for Download -->
+        <Storyboard x:Key="DownloadPulseStoryboard" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="DownArrowTransform"
+                             Storyboard.TargetProperty="Y"
+                             From="0" To="3" Duration="0:0:0.6"
+                             AutoReverse="True"/>
+        </Storyboard>
+
+        <!-- Pulsing Arrow Animation for Upload -->
+        <Storyboard x:Key="UploadPulseStoryboard" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="UpArrowTransform"
+                             Storyboard.TargetProperty="Y"
+                             From="0" To="-3" Duration="0:0:0.6"
+                             AutoReverse="True"/>
+        </Storyboard>
+    </Window.Resources>
+
+    <Grid Margin="10" Name="MainContainer">
+        <Border Style="{StaticResource GlassBorderStyle}">
+            <Border.LayoutTransform>
+                <ScaleTransform x:Name="WidgetScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
+            </Border.LayoutTransform>
+
+            <Grid>
+                <!-- 1. Mini-Bar Floating Pill View (Ultra-compact mode) -->
+                <Grid x:Name="MiniBarPanel" Visibility="Collapsed" Margin="10,6" Cursor="SizeAll">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🌐" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <Ellipse x:Name="MiniStatusDot" Width="6" Height="6" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="↓ " Foreground="{DynamicResource DownloadBrush}" FontWeight="Bold" FontSize="11"/>
+                        <TextBlock x:Name="TxtMiniDown" Text="0.0 M" Foreground="{DynamicResource DownloadBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,7,0"/>
+                        <TextBlock Text="↑ " Foreground="{DynamicResource UploadBrush}" FontWeight="Bold" FontSize="11"/>
+                        <TextBlock x:Name="TxtMiniUp" Text="0.0 M" Foreground="{DynamicResource UploadBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,7,0"/>
+                        <TextBlock x:Name="TxtMiniPing" Text="⚡ 0ms" Foreground="{DynamicResource TextMutedBrush}" FontSize="10.5" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Expand button -->
+                    <Button Grid.Column="2" Style="{StaticResource IconButton}" Click="ToggleMiniBarButton_Click" ToolTip="Expand Full Widget" VerticalAlignment="Center">
+                        <TextBlock Text="⛶" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Button>
+                </Grid>
+
+                <!-- 2. Main Full Widget View -->
+                <StackPanel x:Name="CompactViewPanel" Margin="14,10,14,12">
+                    
+                    <!-- Header Bar (Drag Area & Controls) -->
+                    <Grid Margin="0,0,0,8" Cursor="SizeAll">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🌐" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Internet" FontWeight="Bold" FontSize="13" 
+                                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                            <!-- Connection Status Dot -->
+                            <Ellipse x:Name="StatusDot" Width="7" Height="7" Margin="6,2,0,0" 
+                                     Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Header Action Icons -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Mini-Bar Mode Toggle -->
+                            <Button Style="{StaticResource IconButton}" Click="ToggleMiniBarButton_Click" ToolTip="Mini-Bar Mode">
+                                <TextBlock Text="🗕" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                            <!-- Network Diagnostics button -->
+                            <Button Style="{StaticResource IconButton}" Click="DiagnosticsButton_Click" ToolTip="Network Diagnostics">
+                                <TextBlock Text="🔍" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                            <!-- Always on top pin button -->
+                            <Button Style="{StaticResource IconButton}" Click="PinButton_Click" ToolTip="Toggle Always-on-Top">
+                                <TextBlock x:Name="PinIcon" Text="📌" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                            <!-- Settings button -->
+                            <Button Style="{StaticResource IconButton}" Click="SettingsButton_Click" ToolTip="Settings">
+                                <TextBlock Text="⚙" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                            <!-- Minimize to tray button -->
+                            <Button Style="{StaticResource IconButton}" Click="MinimizeButton_Click" ToolTip="Minimize to Tray">
+                                <TextBlock Text="─" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Live Speed Displays -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="10,8" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="1"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Download Speed -->
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="↓" FontWeight="Black" FontSize="14" 
+                                               Foreground="{DynamicResource DownloadBrush}" Margin="0,0,4,0">
+                                        <TextBlock.RenderTransform>
+                                            <TranslateTransform x:Name="DownArrowTransform"/>
+                                        </TextBlock.RenderTransform>
+                                    </TextBlock>
+                                    <TextBlock Text="DOWNLOAD" FontSize="9.5" FontWeight="SemiBold" 
+                                               Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtDownloadSpeed" Text="0.0 Mbps" 
+                                           FontSize="15" FontWeight="Bold" 
+                                           Foreground="{DynamicResource DownloadBrush}"/>
+                            </StackPanel>
+
+                            <!-- Divider -->
+                            <Rectangle Grid.Column="1" Fill="{DynamicResource BorderSubtleBrush}" Margin="0,2"/>
+
+                            <!-- Upload Speed -->
+                            <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="↑" FontWeight="Black" FontSize="14" 
+                                               Foreground="{DynamicResource UploadBrush}" Margin="0,0,4,0">
+                                        <TextBlock.RenderTransform>
+                                            <TranslateTransform x:Name="UpArrowTransform"/>
+                                        </TextBlock.RenderTransform>
+                                    </TextBlock>
+                                    <TextBlock Text="UPLOAD" FontSize="9.5" FontWeight="SemiBold" 
+                                               Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtUploadSpeed" Text="0.0 Mbps" 
+                                           FontSize="15" FontWeight="Bold" 
+                                           Foreground="{DynamicResource UploadBrush}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Network Info Row: Ping, Wi-Fi/Ethernet, Signal -->
+                    <Grid Margin="2,0,2,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Ping / Latency -->
+                        <StackPanel x:Name="PingPanel" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Ping" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,4,0"/>
+                            <TextBlock x:Name="TxtPing" Text="-- ms" FontSize="11" FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource TextBrush}"/>
+                        </StackPanel>
+
+                        <!-- Wi-Fi / Ethernet Details -->
+                        <StackPanel x:Name="NetworkTypePanel" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtNetworkType" Text="Wi-Fi" FontSize="11" 
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,4,0"/>
+                            <TextBlock x:Name="TxtWifiIcon" Text="📶" FontSize="11" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtWifiSignal" Text="100%" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="3,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Data Usage Card -->
+                    <Border x:Name="DataUsageContainer" Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,0,8">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,3">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="📊" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="DATA USAGE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Click="ResetSessionData_Click" ToolTip="Reset Session Counter" Padding="2">
+                                    <TextBlock Text="↺" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Button>
+                            </Grid>
+                            <Grid Margin="0,0,0,2">
+                                <TextBlock Text="Session:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock x:Name="TxtSessionData" Text="↓ 0.0 MB  ↑ 0.0 MB" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,2">
+                                <TextBlock Text="Today:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock x:Name="TxtTodayData" Text="↓ 0.0 MB  ↑ 0.0 MB" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <!-- Daily Quota Progress Bar (visible when quota > 0) -->
+                            <ProgressBar x:Name="DailyQuotaProgressBar" Height="3" Margin="0,2,0,0" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed" Foreground="{DynamicResource AccentBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Real-time Speed Graph -->
+                    <Border x:Name="GraphContainer" Style="{StaticResource CardBorderStyle}" Height="46" Margin="0,0,0,10" Padding="2">
+                        <controls:SpeedGraph x:Name="LiveSpeedGraph"/>
+                    </Border>
+
+                    <!-- Speed Test Button -->
+                    <Button Style="{StaticResource ModernButtonStyle}" Height="30" Click="SpeedTestButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚡" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="SPEED TEST" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- 3. Network Diagnostics View Overlay -->
+                <Border x:Name="DiagnosticsPanel" Background="{DynamicResource BgBrush}" CornerRadius="14" 
+                        Visibility="Collapsed" Padding="14,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="🔍" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Network Diagnostics" FontWeight="Bold" FontSize="13" 
+                                           Foreground="{DynamicResource TextBrush}"/>
+                            </StackPanel>
+                            <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Click="CloseDiagnostics_Click">
+                                <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- Details List -->
+                        <ScrollViewer Grid.Row="1" MaxHeight="270" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Adapter & Speed Card -->
+                                <Border Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <TextBlock Text="ADAPTER &amp; SPEED" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="TxtDiagAdapter" Text="Interface: --" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock x:Name="TxtDiagLinkSpeed" Text="Link Speed: --" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock x:Name="TxtDiagMac" Text="MAC: --" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- IP & Gateway Card -->
+                                <Border Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <TextBlock Text="IP ROUTING &amp; DNS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="TxtDiagLocalIp" Text="Local IP: --" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock x:Name="TxtDiagGateway" Text="Gateway: --" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock x:Name="TxtDiagDns" Text="DNS: --" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock x:Name="TxtDiagPublicIp" Text="Public IP: Detecting..." FontSize="10" Foreground="{DynamicResource DownloadBrush}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Multi-DNS Latency Card -->
+                                <Border Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <TextBlock Text="MULTI-DNS BENCHMARK" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="TxtDiagDnsBenchmark" Text="Cloudflare: -- | Google: -- | Quad9: --" FontSize="10" Foreground="{DynamicResource TextBrush}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Wi-Fi Details Card (if Wi-Fi) -->
+                                <Border x:Name="DiagWifiCard" Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <TextBlock Text="WI-FI SIGNAL &amp; CHANNEL" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,3"/>
+                                        <TextBlock x:Name="TxtDiagWifiDetails" Text="SSID: -- | Signal: --" FontSize="10" Foreground="{DynamicResource TextBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Actions -->
+                        <Grid Grid.Row="2" Margin="0,8,0,0">
+                            <Button x:Name="BtnCopyDiag" Style="{StaticResource ModernButtonStyle}" Content="Copy Report" Height="26" HorizontalAlignment="Left" Click="CopyDiagnostics_Click"/>
+                            <Button Style="{StaticResource IconButton}" Content="Refresh" HorizontalAlignment="Right" Margin="0,0,50,0" Click="RefreshDiagnostics_Click"/>
+                            <Button Style="{StaticResource ModernButtonStyle}" Content="Close" Width="44" Height="26" HorizontalAlignment="Right" Click="CloseDiagnostics_Click"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- 4. Speed Test View Overlay -->
+                <Border x:Name="SpeedTestPanel" Background="{DynamicResource BgBrush}" CornerRadius="14" 
+                        Visibility="Collapsed" Padding="14,12">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="⚡" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Internet Speed Test" FontWeight="Bold" FontSize="13" 
+                                           Foreground="{DynamicResource TextBrush}"/>
+                            </StackPanel>
+                            <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Click="CloseSpeedTest_Click">
+                                <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- Server Node & Mode info -->
+                        <Border Style="{StaticResource CardBorderStyle}" Padding="8,5" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Server: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock x:Name="TxtTestServer" Text="Anycast Edge CDN" FontSize="10" 
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Speed Results Grid -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Download Result -->
+                            <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,4,4">
+                                <StackPanel>
+                                    <TextBlock Text="↓ DOWNLOAD" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource DownloadBrush}"/>
+                                    <TextBlock x:Name="TxtTestDownload" Text="-- Mbps" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource DownloadBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Upload Result -->
+                            <Border Grid.Column="1" Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="4,0,0,4">
+                                <StackPanel>
+                                    <TextBlock Text="↑ UPLOAD" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource UploadBrush}"/>
+                                    <TextBlock x:Name="TxtTestUpload" Text="-- Mbps" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource UploadBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Latency Result -->
+                            <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,4,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="PING LATENCY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="TxtTestPing" Text="-- ms" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Jitter Result -->
+                            <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="4,4,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="JITTER" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="TxtTestJitter" Text="-- ms" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextBrush}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Progress Bar & Status Text -->
+                        <ProgressBar x:Name="TestProgressBar" Height="4" Margin="0,0,0,6"
+                                     Minimum="0" Maximum="100" Value="0"
+                                     Foreground="{DynamicResource AccentBrush}"/>
+                        
+                        <TextBlock x:Name="TxtTestStatus" Text="Ready to test ISP bandwidth" 
+                                   FontSize="10.5" TextAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10"/>
+
+                        <!-- Action Buttons -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="BtnStartSpeedTest" Style="{StaticResource ModernButtonStyle}" 
+                                    Content="Start Speed Test" Height="28" Click="StartSpeedTest_Click"/>
+                            <Button Style="{StaticResource IconButton}" Grid.Column="1" Margin="6,0,0,0" 
+                                    Click="ViewHistory_Click" ToolTip="Test History">
+                                <TextBlock Text="📜" FontSize="13"/>
+                            </Button>
+                        </Grid>
+
+                        <TextBlock Text="* Measurements are estimates based on CDN throughput." 
+                                   FontSize="8.5" TextAlignment="Center" 
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 5. Settings View Overlay -->
+                <Border x:Name="SettingsPanel" Background="{DynamicResource BgBrush}" CornerRadius="14" 
+                        Visibility="Collapsed" Padding="14,12">
+                    <ScrollViewer MaxHeight="330" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,4,0">
+                            <Grid Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="⚙" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Widget Settings" FontWeight="Bold" FontSize="13" 
+                                               Foreground="{DynamicResource TextBrush}"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Click="CloseSettings_Click">
+                                    <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Button>
+                            </Grid>
+
+                            <!-- Theme Toggle -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Theme" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbTheme" Width="95" Height="24" HorizontalAlignment="Right" 
+                                          SelectionChanged="CmbTheme_SelectionChanged">
+                                    <ComboBoxItem Content="Dark" IsSelected="True"/>
+                                    <ComboBoxItem Content="Light"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Widget Scale / Size -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Size" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbScale" Width="95" Height="24" HorizontalAlignment="Right"
+                                          SelectionChanged="CmbScale_SelectionChanged">
+                                    <ComboBoxItem Content="Compact (85%)"/>
+                                    <ComboBoxItem Content="Normal (100%)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Large (120%)"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Speed Unit Preference -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Speed Unit" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbSpeedUnit" Width="95" Height="24" HorizontalAlignment="Right"
+                                          SelectionChanged="CmbSpeedUnit_SelectionChanged">
+                                    <ComboBoxItem Content="Auto" IsSelected="True"/>
+                                    <ComboBoxItem Content="Mbps"/>
+                                    <ComboBoxItem Content="MB/s"/>
+                                    <ComboBoxItem Content="Kbps"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Refresh Rate -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Refresh Rate" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbRefreshRate" Width="95" Height="24" HorizontalAlignment="Right"
+                                          SelectionChanged="CmbRefreshRate_SelectionChanged">
+                                    <ComboBoxItem Content="Fast (500ms)"/>
+                                    <ComboBoxItem Content="Normal (1s)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Battery (2s)"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Network Adapter -->
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="Network Adapter" FontSize="11" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,3"/>
+                                <ComboBox x:Name="CmbAdapters" Height="24" SelectionChanged="CmbAdapters_SelectionChanged"/>
+                            </StackPanel>
+
+                            <!-- Ping Target -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Ping Host" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtPingHost" Width="100" Height="22" HorizontalAlignment="Right"
+                                         FontSize="11" VerticalContentAlignment="Center" Text="1.1.1.1"
+                                         LostFocus="TxtPingHost_LostFocus"/>
+                            </Grid>
+
+                            <!-- Daily Data Quota (MB) -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Daily Quota (MB)" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtDailyQuota" Width="70" Height="22" HorizontalAlignment="Right"
+                                         FontSize="11" VerticalContentAlignment="Center" Text="0" ToolTip="0 = Disabled"
+                                         LostFocus="TxtDailyQuota_LostFocus"/>
+                            </Grid>
+
+                            <!-- Quota Action -->
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="Quota Action" FontSize="11" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="CmbQuotaAction" Width="95" Height="24" HorizontalAlignment="Right"
+                                          SelectionChanged="CmbQuotaAction_SelectionChanged">
+                                    <ComboBoxItem Content="Alert"/>
+                                    <ComboBoxItem Content="Lock PC"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Toggles -->
+                            <CheckBox x:Name="ChkAlwaysOnTop" Content="Always on Top" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkAlwaysOnTop_Changed" Unchecked="ChkAlwaysOnTop_Changed"/>
+
+                            <CheckBox x:Name="ChkStartWithWindows" Content="Start with Windows" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkStartWithWindows_Changed" Unchecked="ChkStartWithWindows_Changed"/>
+
+                            <CheckBox x:Name="ChkMiniGraph" Content="Show Speed Graph" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkMiniGraph_Changed" Unchecked="ChkMiniGraph_Changed"/>
+
+                            <CheckBox x:Name="ChkDataUsage" Content="Show Data Usage Counter" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkDataUsage_Changed" Unchecked="ChkDataUsage_Changed"/>
+
+                            <CheckBox x:Name="ChkSnapEdges" Content="Snap to Screen Edges" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkSnapEdges_Changed" Unchecked="ChkSnapEdges_Changed"/>
+
+                            <CheckBox x:Name="ChkDisconnectAlert" Content="Alert on Disconnect / Reconnect" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkDisconnectAlert_Changed" Unchecked="ChkDisconnectAlert_Changed"/>
+
+                            <CheckBox x:Name="ChkHighPingAlert" Content="Alert on Latency Spike (>150ms)" Margin="0,0,0,6" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkHighPingAlert_Changed" Unchecked="ChkHighPingAlert_Changed"/>
+
+                            <CheckBox x:Name="ChkClickThrough" Content="Ghost / Click-Through Mode" Margin="0,0,0,10" 
+                                      FontSize="11" Foreground="{DynamicResource TextBrush}"
+                                      Checked="ChkClickThrough_Changed" Unchecked="ChkClickThrough_Changed"
+                                      ToolTip="Clicks pass through to windows beneath. Disable via tray icon."/>
+
+                            <Button Style="{StaticResource ModernButtonStyle}" Content="Done" Height="26" Click="CloseSettings_Click"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- 6. History View Overlay -->
+                <Border x:Name="HistoryPanel" Background="{DynamicResource BgBrush}" CornerRadius="14" 
+                        Visibility="Collapsed" Padding="14,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="📜" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Speed Test History" FontWeight="Bold" FontSize="12.5" 
+                                           Foreground="{DynamicResource TextBrush}"/>
+                            </StackPanel>
+                            <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Click="CloseHistory_Click">
+                                <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Button>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="1" MaxHeight="210" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="HistoryItemsList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource CardBorderStyle}" Padding="8,6" Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding FormattedDate}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <TextBlock Text="{Binding ServerName}" FontSize="10" Foreground="{DynamicResource TextBrush}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding DownloadDisplay, StringFormat='↓ {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource DownloadBrush}"/>
+                                                    <TextBlock Text="{Binding UploadDisplay, StringFormat='↑ {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource UploadBrush}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <Grid Grid.Row="2" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                <Button Style="{StaticResource IconButton}" Content="Export CSV" Margin="0,0,4,0" Click="ExportCsv_Click" ToolTip="Export history to CSV"/>
+                                <Button Style="{StaticResource IconButton}" Content="Clear" Click="ClearHistory_Click"/>
+                            </StackPanel>
+                            <Button Style="{StaticResource ModernButtonStyle}" Content="Back" Width="55" Height="24" HorizontalAlignment="Right" Click="CloseHistory_Click"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

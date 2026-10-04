@@ -1,0 +1,68 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="NetSpeedWidget" 
+           Manufacturer="NetSpeedWidget Community" 
+           Version="$(var.Version)" 
+           UpgradeCode="4C6F5A3E-812C-4D90-A8F1-3E2A1F9B7C50" 
+           Scope="perUser">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." AllowSameVersionUpgrades="yes" />
+    
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="Main" Title="NetSpeedWidget" Level="1">
+      <ComponentGroupRef Id="AppComponents" />
+      <ComponentRef Id="ApplicationShortcuts" />
+    </Feature>
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="NetSpeedWidget" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="NetSpeedWidget" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+
+    <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="5241C765-CDB9-42F3-87D2-E40B7E1B8A4D">
+        <File Id="NetSpeedWidgetExe" Source="$(var.PublishDir)\NetSpeedWidget.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="AppIconComponent" Guid="6A548E1D-9B2F-430C-871B-D19A3F2C5E78">
+        <File Id="AppIconFile" Source="src\NetSpeedWidget\Resources\app.ico" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcuts" Guid="98F1B3E2-7D6C-490A-B1E5-4C3D2F8A1E6B">
+        <!-- Start Menu Shortcut -->
+        <Shortcut Id="StartMenuShortcut" 
+                  Name="NetSpeedWidget"
+                  Description="Lightweight real-time Internet speed monitoring and network diagnostics for Windows."
+                  Target="[!NetSpeedWidgetExe]"
+                  WorkingDirectory="INSTALLFOLDER" 
+                  Icon="AppIcon" />
+        
+        <!-- Uninstall Shortcut -->
+        <Shortcut Id="UninstallShortcut"
+                  Name="Uninstall NetSpeedWidget"
+                  Description="Uninstalls NetSpeedWidget"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]" />
+                  
+        <RemoveFolder Id="CleanUpStartMenu" Directory="ApplicationProgramsFolder" On="uninstall" />
+        
+        <!-- We use a registry key path as the component keypath -->
+        <RegistryValue Root="HKCU" Key="Software\NetSpeedWidget Community\NetSpeedWidget" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Icon Id="AppIcon" SourceFile="src\NetSpeedWidget\Resources\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/netspeedwidget/netspeedwidget" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/netspeedwidget/netspeedwidget" />
+
+  </Package>
+</Wix>

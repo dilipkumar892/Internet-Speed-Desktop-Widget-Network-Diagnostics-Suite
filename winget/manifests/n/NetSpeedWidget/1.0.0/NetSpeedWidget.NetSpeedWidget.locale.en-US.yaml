@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: NetSpeedWidget.NetSpeedWidget
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: NetSpeedWidget Community
+PublisherUrl: https://github.com/netspeedwidget/netspeedwidget
+PublisherSupportUrl: https://github.com/netspeedwidget/netspeedwidget/issues
+PackageName: NetSpeedWidget
+PackageUrl: https://github.com/netspeedwidget/netspeedwidget
+License: MIT
+LicenseUrl: https://github.com/netspeedwidget/netspeedwidget/blob/main/LICENSE
+Copyright: Copyright (c) 2026 NetSpeedWidget Community
+ShortDescription: Lightweight, modern Internet Speed Desktop Widget for Windows 10
+Description: |
+  NetSpeedWidget is a modern, lightweight floating desktop widget for Windows 10 that continuously
+  displays real-time network throughput (download and upload), ping latency, Wi-Fi signal strength,
+  and connection status. Features a real-time sparkline graph, animated speed indicators, customizable
+  themes and scales, edge snapping, always-on-top, system tray integration, and an integrated ISP speed test tool.
+Moniker: netspeedwidget
+Tags:
+  - internet
+  - speed
+  - network
+  - bandwidth
+  - ping
+  - widget
+  - desktop
+  - speedtest
+  - latency
+  - wifi
+ReleaseNotesUrl: https://github.com/netspeedwidget/netspeedwidget/releases/tag/v1.0.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
